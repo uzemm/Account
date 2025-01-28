@@ -1,5 +1,6 @@
 package com.example.account.controller;
 
+import com.example.account.aop.AccountLock;
 import com.example.account.dto.CancelBalance;
 import com.example.account.dto.QueryTransactionResponse;
 import com.example.account.dto.UseBalance;
@@ -24,12 +25,14 @@ public class TransactionController {
     private final TransactionService transactionService;
 
     @PostMapping("/transaction/use")
-    public UseBalance.Response useBalance(@Valid @RequestBody UseBalance.Request request){
+    @AccountLock
+    public UseBalance.Response useBalance(@Valid @RequestBody UseBalance.Request request) throws InterruptedException {
         try {
+            Thread.sleep(3000L);
             return UseBalance.Response.from(transactionService.useBalance(
                     request.getUserId(), request.getAccountNumber(), request.getAmount()));
         } catch (AccountException e) {
-            log.error("Failed to useBalance.");
+            log.error("Failed to use balance.");
 
             transactionService.saveFailedUseTransaction(request.getAccountNumber(), request.getAmount());
 
@@ -38,12 +41,13 @@ public class TransactionController {
     }
 
     @PostMapping("/transaction/cancel")
+    @AccountLock
     public CancelBalance.Response cancelBalance(@Valid @RequestBody CancelBalance.Request request) {
         try {
             return CancelBalance.Response.from(transactionService.cancelBalance(
                     request.getTransactionId(), request.getAccountNumber(), request.getAmount()));
         } catch (AccountException e) {
-            log.error("Failed to useBalance.");
+            log.error("Failed to cancel balance.");
 
             transactionService.saveFailedCancelTransaction(request.getAccountNumber(), request.getAmount());
 
