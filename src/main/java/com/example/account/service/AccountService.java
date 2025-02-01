@@ -40,10 +40,9 @@ public class AccountService {
      */
     @Transactional
     public AccountDto createAccount(Long userId, Long initialBalance) {
-        AccountUser accountUser = accountUserRepository.findById(userId)
-                .orElseThrow(() -> new AccountException(USER_NOT_FOUND));
+        AccountUser accountUser = getAccountUser(userId);
 
-        vaildateCreateAccount(accountUser);
+        validateCreateAccount(accountUser);
 
         String newAccountNumber = accountRepository.findFirstByOrderByIdDesc()
                 .map(account -> (Integer.parseInt(account.getAccountNumber())) + 1 +"")
@@ -59,7 +58,7 @@ public class AccountService {
                 .build()));
     }
 
-    private void vaildateCreateAccount(AccountUser accountUser) {
+    private void validateCreateAccount(AccountUser accountUser) {
         if(accountRepository.countByAccountUser(accountUser) >= 10){
             throw new AccountException(ErrorCode.MAX_ACCOUNT_PER_USER_10);
         }
@@ -75,12 +74,11 @@ public class AccountService {
 
     @Transactional
     public AccountDto deleteAccount(Long userId, String accountNumber) {
-        AccountUser accountUser = accountUserRepository.findById(userId)
-                .orElseThrow(() -> new AccountException(USER_NOT_FOUND));
+        AccountUser accountUser = getAccountUser(userId);
         Account account = accountRepository.findByAccountNumber(accountNumber)
                 .orElseThrow(() -> new AccountException(ErrorCode.ACCOUNT_NOT_FOUND));
 
-        vaildateDeleteAccount(accountUser, account);
+        validateDeleteAccount(accountUser, account);
 
         account.setAccountStatus(UNREGISTERED);
         account.setUnRegisteredAt(LocalDateTime.now());
@@ -90,7 +88,7 @@ public class AccountService {
         return AccountDto.fromEntity(account);
     }
 
-    private void vaildateDeleteAccount(AccountUser accountUser, Account account) {
+    private void validateDeleteAccount(AccountUser accountUser, Account account) {
         if(!Objects.equals(accountUser.getId(), account.getAccountUser().getId())){
             throw new AccountException(ErrorCode.USER_ACCOUNT_UN_MATCH);
         }
@@ -106,11 +104,15 @@ public class AccountService {
 
     @Transactional
     public List<AccountDto> getAccountsByUserId(Long userId) {
-        AccountUser accountUser = accountUserRepository.findById(userId)
-                .orElseThrow(() -> new AccountException(USER_NOT_FOUND));
+        AccountUser accountUser = getAccountUser(userId);
 
         List<Account> accounts = accountRepository.findByAccountUser(accountUser);
 
         return accounts.stream().map(AccountDto::fromEntity).collect(Collectors.toList());
+    }
+
+    private AccountUser getAccountUser(Long userId) {
+        return accountUserRepository.findById(userId)
+                .orElseThrow(() -> new AccountException(USER_NOT_FOUND));
     }
 }
